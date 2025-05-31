@@ -26,13 +26,13 @@ def create_thumbnail_from_pdf(pdf_bytes, index):
         pix = page.get_pixmap()
         image = Image.open(io.BytesIO(pix.tobytes("ppm")))
 
-        # Resize image
+        # Resize image to fixed height
         max_height = 100
         aspect_ratio = image.width / image.height
         new_width = int(max_height * aspect_ratio)
         image = image.resize((new_width, max_height))
 
-        # Save temp image
+        # Save to disk
         path = f"{TEMP_DIR}/thumb_{index}.png"
         image.save(path, format="PNG")
         return path, new_width, max_height
@@ -55,26 +55,32 @@ if uploaded_files:
             if not image_path:
                 continue
 
-            # Adjust cell size
-            col_width = img_width * 0.14
-            worksheet.set_column(col, col, col_width)
-            worksheet.set_row(row, img_height * 0.75)
+            # Excel column width: 1 unit ≈ 7 pixels
+            col_width_units = img_width / 7.0
+            row_height_points = img_height * 0.75
 
-            # Insert image in cell with "move and size with cells"
+            worksheet.set_column(col, col, col_width_units)
+            worksheet.set_row(row, row_height_points)
+
+            # Calculate x/y scale so image fits perfectly in cell
+            with Image.open(image_path) as img:
+                orig_width, orig_height = img.size
+
+            x_scale = img_width / orig_width
+            y_scale = img_height / orig_height
+
             worksheet.insert_image(row, col, image_path, {
-                'x_offset': 0,
-                'y_offset': 0,
-                'x_scale': 1,
-                'y_scale': 1,
+                'x_scale': x_scale,
+                'y_scale': y_scale,
                 'object_position': 1  # Move and size with cells
             })
+
             col += 1
 
         workbook.close()
         shutil.rmtree(TEMP_DIR)
 
-        st.success("✅ Excel file generated with thumbnails!")
-
+        st.success("✅ Excel file generated with thumbnails embedded in cells!")
         st.download_button(
             label="📥 Download Excel File",
             data=output.getvalue(),
