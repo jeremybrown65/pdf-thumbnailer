@@ -13,7 +13,7 @@ st.title("📄 PDF Thumbnail Generator")
 # --- Constants ---
 TEMP_DIR = "thumbnails_temp"
 
-# --- Ensure clean temp folder ---
+# --- Ensure temp folder exists ---
 if not os.path.exists(TEMP_DIR):
     os.makedirs(TEMP_DIR, exist_ok=True)
 
@@ -21,7 +21,8 @@ if not os.path.exists(TEMP_DIR):
 uploaded_files = st.file_uploader(
     "Upload one or more PDF files",
     type=["pdf"],
-    accept_multiple_files=True
+    accept_multiple_files=True,
+    key="pdf_uploader"
 )
 
 # --- Convert a PDF to a thumbnail image ---
@@ -79,11 +80,9 @@ if uploaded_files:
         else:
             st.warning("No thumbnails were created.")
 
-# --- Manual cleanup button ---
-if st.button("🗑️ Clear Converted Files"):
+# --- Manual cleanup + reset app ---
+if st.button("🗑️ Clear Converted Files and Reset App"):
     if os.path.exists(TEMP_DIR):
         shutil.rmtree(TEMP_DIR)
-        os.makedirs(TEMP_DIR, exist_ok=True)
-        st.info("Temporary thumbnail files cleared.")
-    else:
-        st.warning("No files to clear.")
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    st.experimental_rerun()
