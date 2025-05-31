@@ -16,39 +16,46 @@ if os.path.exists(TEMP_DIR):
     shutil.rmtree(TEMP_DIR)
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# Upload PDFs
-uploaded_files = st.file_uploader("Upload one or more PDF files", type=["pdf"], accept_multiple_files=True)
+# File uploader
+uploaded_files = st.file_uploader(
+    "Upload one or more PDF files", 
+    type=["pdf"], 
+    accept_multiple_files=True
+)
 
-def generate_thumbnail(pdf_bytes, index, original_filename):
+def generate_thumbnail(pdf_bytes, original_filename):
     try:
+        # Load and render first page of PDF
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = doc[0]
         pix = page.get_pixmap(dpi=150)
         image = Image.open(io.BytesIO(pix.tobytes("ppm")))
 
-        # Resize to 200px tall
+        # Resize image to 200px height
         target_height = 200
         aspect_ratio = image.width / image.height
         new_width = int(target_height * aspect_ratio)
         image = image.resize((new_width, target_height))
 
-        # Clean and save thumbnail name
+        # Clean original filename for image naming
         base_name = os.path.splitext(original_filename)[0]
-        safe_name = base_name.replace(" ", "_").replace("/", "_")
+        safe_name = base_name.replace(" ", "_").replace("/", "_").replace("\\", "_")
         img_path = f"{TEMP_DIR}/{safe_name}.jpg"
+
         image.save(img_path, format="JPEG")
         return img_path
     except Exception as e:
-        st.error(f"Error processing {original_filename}: {e}")
+        st.error(f"Error processing '{original_filename}': {e}")
         return None
 
+# Main processing
 if uploaded_files:
     with st.spinner("Generating thumbnails..."):
         image_paths = []
 
-        for i, file in enumerate(uploaded_files):
+        for file in uploaded_files:
             pdf_data = file.read()
-            img_path = generate_thumbnail(pdf_data, i, file.name)
+            img_path = generate_thumbnail(pdf_data, file.name)
             if img_path:
                 image_paths.append(img_path)
 
@@ -60,7 +67,7 @@ if uploaded_files:
                 with open(img_path, "rb") as f:
                     zipf.writestr(filename, f.read())
 
-        # Cleanup temp images
+        # Cleanup temp folder
         shutil.rmtree(TEMP_DIR)
 
         st.success("✅ Thumbnails generated!")
