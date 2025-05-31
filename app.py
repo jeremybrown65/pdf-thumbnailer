@@ -9,7 +9,7 @@ from pathlib import Path
 
 # --- Setup ---
 st.set_page_config(page_title="PDF Thumbnail Generator", layout="centered")
-st.title("📄 Upload PDFs or ZIP of PDFs")
+st.title("📄 PDF Thumbnail Generator")
 
 # --- Constants ---
 TEMP_PDF_DIR = "pdf_temp"
@@ -21,9 +21,19 @@ for folder in [TEMP_PDF_DIR, TEMP_IMG_DIR]:
         shutil.rmtree(folder)
     os.makedirs(folder, exist_ok=True)
 
-# --- Upload options ---
-uploaded_pdfs = st.file_uploader("Upload individual PDF files", type=["pdf"], accept_multiple_files=True)
-uploaded_zip = st.file_uploader("Or upload a .zip file containing PDFs", type=["zip"])
+# --- Instructions ---
+st.subheader("📂 Drag and drop individual PDF files here")
+uploaded_pdfs = st.file_uploader(
+    label="Upload PDFs",
+    type=["pdf"],
+    accept_multiple_files=True
+)
+
+st.subheader("🗂️ Or drag and drop a ZIP folder of PDFs here")
+uploaded_zip = st.file_uploader(
+    label="Upload ZIP",
+    type=["zip"]
+)
 
 # --- Convert a PDF to a thumbnail image ---
 def generate_thumbnail(pdf_bytes, original_filename):
@@ -56,11 +66,15 @@ all_pdfs = []
 # From ZIP
 if uploaded_zip:
     with st.spinner("Extracting ZIP..."):
-        with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
-            zip_ref.extractall(TEMP_PDF_DIR)
-        pdf_paths = list(Path(TEMP_PDF_DIR).rglob("*.pdf"))
-        for path in pdf_paths:
-            all_pdfs.append((path.read_bytes(), path.name))
+        try:
+            with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
+                zip_ref.extractall(TEMP_PDF_DIR)
+            pdf_paths = list(Path(TEMP_PDF_DIR).rglob("*.pdf"))
+            for path in pdf_paths:
+                with path.open("rb") as f:
+                    all_pdfs.append((f.read(), path.name))
+        except Exception as e:
+            st.error(f"Failed to extract ZIP file: {e}")
 
 # From individual uploads
 if uploaded_pdfs:
@@ -96,4 +110,4 @@ if all_pdfs:
         else:
             st.warning("No thumbnails were created.")
 else:
-    st.info("Upload PDFs or a ZIP file to get started.")
+    st.info("Upload PDFs or a ZIP file to begin.")
