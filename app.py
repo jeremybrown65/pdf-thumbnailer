@@ -29,7 +29,6 @@ uploaded_pdfs = st.file_uploader(
 # --- Convert a PDF to a thumbnail image ---
 def generate_thumbnail(pdf_bytes, original_filename):
     try:
-        # Skip invalid macOS resource files
         if original_filename.startswith("._") or len(pdf_bytes) < 1024:
             raise ValueError("Not a valid PDF")
 
@@ -44,7 +43,7 @@ def generate_thumbnail(pdf_bytes, original_filename):
         new_width = int(target_height * aspect_ratio)
         image = image.resize((new_width, target_height))
 
-        # Create safe filename
+        # Safe file name
         base_name = os.path.splitext(original_filename)[0]
         safe_name = base_name.replace(" ", "_").replace("/", "_").replace("\\", "_")
         img_path = f"{TEMP_IMG_DIR}/{safe_name}.jpg"
@@ -66,7 +65,6 @@ if uploaded_pdfs:
                 image_paths.append(img_path)
 
         if image_paths:
-            # Package into ZIP
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for img_path in image_paths:
