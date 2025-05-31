@@ -19,7 +19,7 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 # Upload PDFs
 uploaded_files = st.file_uploader("Upload one or more PDF files", type=["pdf"], accept_multiple_files=True)
 
-def generate_thumbnail(pdf_bytes, index):
+def generate_thumbnail(pdf_bytes, index, original_filename):
     try:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = doc[0]
@@ -32,11 +32,14 @@ def generate_thumbnail(pdf_bytes, index):
         new_width = int(target_height * aspect_ratio)
         image = image.resize((new_width, target_height))
 
-        img_path = f"{TEMP_DIR}/thumb_{index+1}.jpg"
+        # Clean and save thumbnail name
+        base_name = os.path.splitext(original_filename)[0]
+        safe_name = base_name.replace(" ", "_").replace("/", "_")
+        img_path = f"{TEMP_DIR}/{safe_name}.jpg"
         image.save(img_path, format="JPEG")
         return img_path
     except Exception as e:
-        st.error(f"Error processing PDF #{index+1}: {e}")
+        st.error(f"Error processing {original_filename}: {e}")
         return None
 
 if uploaded_files:
@@ -45,7 +48,7 @@ if uploaded_files:
 
         for i, file in enumerate(uploaded_files):
             pdf_data = file.read()
-            img_path = generate_thumbnail(pdf_data, i)
+            img_path = generate_thumbnail(pdf_data, i, file.name)
             if img_path:
                 image_paths.append(img_path)
 
