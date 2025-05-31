@@ -1,9 +1,8 @@
 import streamlit as st
-from pdf2image import convert_from_bytes
+import fitz  # PyMuPDF
 from PIL import Image
-import zipfile
 import io
-import os
+import zipfile
 
 st.set_page_config(page_title="PDF Thumbnail Generator", layout="centered")
 
@@ -14,15 +13,17 @@ uploaded_files = st.file_uploader("Upload PDF(s)", type=["pdf"], accept_multiple
 
 def create_thumbnail(pdf_bytes, filename):
     try:
-        pages = convert_from_bytes(pdf_bytes, first_page=1, last_page=1)
-        page = pages[0]
-
-        aspect_ratio = page.width / page.height
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        page = doc[0]
+        pix = page.get_pixmap()
+        image = Image.open(io.BytesIO(pix.tobytes("ppm")))
+        
+        aspect_ratio = image.width / image.height
         new_width = int(200 * aspect_ratio)
-        page.thumbnail((new_width, 200))
+        image = image.resize((new_width, 200))
         
         img_byte_arr = io.BytesIO()
-        page.save(img_byte_arr, format='JPEG')
+        image.save(img_byte_arr, format="JPEG")
         return filename.replace(".pdf", ".jpg"), img_byte_arr.getvalue()
     except Exception as e:
         st.error(f"Error processing {filename}: {e}")
