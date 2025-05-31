@@ -1,3 +1,30 @@
+import streamlit as st
+import fitz  # PyMuPDF
+from PIL import Image
+import io
+import zipfile
+import os
+import shutil
+
+# --- Setup ---
+st.set_page_config(page_title="PDF Thumbnail Generator", layout="centered")
+st.title("📄 PDF Thumbnail Generator")
+
+# --- Constants ---
+TEMP_DIR = "thumbnails_temp"
+
+# --- Ensure clean temp folder ---
+if not os.path.exists(TEMP_DIR):
+    os.makedirs(TEMP_DIR, exist_ok=True)
+
+# --- File uploader ---
+uploaded_files = st.file_uploader(
+    "Upload one or more PDF files",
+    type=["pdf"],
+    accept_multiple_files=True
+)
+
+# --- Convert a PDF to a thumbnail image ---
 def generate_thumbnail(pdf_bytes, original_filename):
     try:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -21,3 +48,13 @@ def generate_thumbnail(pdf_bytes, original_filename):
     except Exception as e:
         st.error(f"Error processing '{original_filename}': {e}")
         return None
+
+# --- Process uploaded PDFs ---
+if uploaded_files:
+    with st.spinner("Generating thumbnails..."):
+        image_paths = []
+
+        for file in uploaded_files:
+            pdf_data = file.read()
+            img_path = generate_thumbnail(pdf_data, file.name)
+            if im
