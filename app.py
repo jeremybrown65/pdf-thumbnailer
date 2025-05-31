@@ -57,4 +57,33 @@ if uploaded_files:
         for file in uploaded_files:
             pdf_data = file.read()
             img_path = generate_thumbnail(pdf_data, file.name)
-            if im
+            if img_path:
+                image_paths.append(img_path)
+
+        if image_paths:
+            # Package into ZIP
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for img_path in image_paths:
+                    filename = os.path.basename(img_path)
+                    with open(img_path, "rb") as f:
+                        zipf.writestr(filename, f.read())
+
+            st.success("✅ Thumbnails generated!")
+            st.download_button(
+                label="📥 Download Thumbnails (ZIP)",
+                data=zip_buffer.getvalue(),
+                file_name="pdf_thumbnails.zip",
+                mime="application/zip"
+            )
+        else:
+            st.warning("No thumbnails were created.")
+
+# --- Manual cleanup button ---
+if st.button("🗑️ Clear Converted Files"):
+    if os.path.exists(TEMP_DIR):
+        shutil.rmtree(TEMP_DIR)
+        os.makedirs(TEMP_DIR, exist_ok=True)
+        st.info("Temporary thumbnail files cleared.")
+    else:
+        st.warning("No files to clear.")
