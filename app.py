@@ -1,8 +1,37 @@
+import streamlit as st
+import fitz  # PyMuPDF
+from PIL import Image
+import io
+import zipfile
+import os
+import shutil
+
+# --- Setup ---
+st.set_page_config(page_title="PDF Thumbnail Generator", layout="centered")
+st.title("📄 PDF Thumbnail Generator")
+
+# --- Constants ---
+TEMP_IMG_DIR = "thumbnails_temp"
+
+# --- Clean temp folder ---
+if os.path.exists(TEMP_IMG_DIR):
+    shutil.rmtree(TEMP_IMG_DIR)
+os.makedirs(TEMP_IMG_DIR, exist_ok=True)
+
+# --- Upload UI ---
+st.subheader("📂 Drag and drop individual PDF files here")
+uploaded_pdfs = st.file_uploader(
+    label="Upload PDFs",
+    type=["pdf"],
+    accept_multiple_files=True
+)
+
+# --- Convert a PDF to a thumbnail image ---
 def generate_thumbnail(pdf_bytes, original_filename):
     try:
-        # Skip likely invalid macOS files
+        # Skip invalid macOS resource files
         if original_filename.startswith("._") or len(pdf_bytes) < 1024:
-            raise ValueError("Skipped: Not a valid PDF (likely macOS resource file).")
+            raise ValueError("Not a valid PDF")
 
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = doc[0]
@@ -25,3 +54,34 @@ def generate_thumbnail(pdf_bytes, original_filename):
     except Exception as e:
         st.warning(f"⚠️ Skipped '{original_filename}': {e}")
         return None
+
+# --- Process PDFs ---
+if uploaded_pdfs:
+    with st.spinner("Generating thumbnails..."):
+        image_paths = []
+
+        for file in uploaded_pdfs:
+            img_path = generate_thumbnail(file.read(), file.name)
+            if img_path:
+                image_paths.append(img_path)
+
+        if image_paths:
+            # Package into ZIP
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for img_path in image_paths:
+                    filename = os.path.basename(img_path)
+                    with open(img_path, "rb") as f:
+                        zipf.writestr(filename, f.read())
+
+            st.success("✅ Thumbnails generated!")
+            st.download_button(
+                label="📥 Download Thumbnails (ZIP)",
+                data=zip_buffer.getvalue(),
+                file_name="pdf_thumbnails.zip",
+                mime="application/zip"
+            )
+        else:
+            st.warning("No valid PDFs were processed.")
+else:
+    st.info("Upload PDF files to begin.")
