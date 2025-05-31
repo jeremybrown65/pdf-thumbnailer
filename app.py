@@ -16,25 +16,23 @@ if os.path.exists(TEMP_DIR):
     shutil.rmtree(TEMP_DIR)
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# Upload PDFs
 uploaded_files = st.file_uploader("Upload one or more PDF files", type=["pdf"], accept_multiple_files=True)
 
 def create_thumbnail_from_pdf(pdf_bytes, index):
     try:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = doc[0]
-        pix = page.get_pixmap()
+        pix = page.get_pixmap(dpi=150)
         image = Image.open(io.BytesIO(pix.tobytes("ppm")))
 
-        # Resize image to fixed height
         max_height = 100
         aspect_ratio = image.width / image.height
         new_width = int(max_height * aspect_ratio)
         image = image.resize((new_width, max_height))
 
-        # Save to disk
         path = f"{TEMP_DIR}/thumb_{index}.png"
         image.save(path, format="PNG")
+
         return path, new_width, max_height
     except Exception as e:
         st.error(f"Error processing PDF #{index+1}: {e}")
@@ -55,24 +53,18 @@ if uploaded_files:
             if not image_path:
                 continue
 
-            # Excel column width: 1 unit ≈ 7 pixels
-            col_width_units = img_width / 7.0
-            row_height_points = img_height * 0.75
+            # Excel units: column width ~7.5px, row height in points (1pt ≈ 1.33px)
+            col_width = img_width / 7.5
+            row_height = img_height * 0.75
 
-            worksheet.set_column(col, col, col_width_units)
-            worksheet.set_row(row, row_height_points)
-
-            # Calculate x/y scale so image fits perfectly in cell
-            with Image.open(image_path) as img:
-                orig_width, orig_height = img.size
-
-            x_scale = img_width / orig_width
-            y_scale = img_height / orig_height
+            worksheet.set_column(col, col, col_width)
+            worksheet.set_row(row, row_height)
 
             worksheet.insert_image(row, col, image_path, {
-                'x_scale': x_scale,
-                'y_scale': y_scale,
-                'object_position': 1  # Move and size with cells
+                'x_offset': 0,
+                'y_offset': 0,
+                'object_position': 1,  # Move and size with cells
+                # No scaling needed if column and row exactly match
             })
 
             col += 1
@@ -80,7 +72,7 @@ if uploaded_files:
         workbook.close()
         shutil.rmtree(TEMP_DIR)
 
-        st.success("✅ Excel file generated with thumbnails embedded in cells!")
+        st.success("✅ Excel file generated with thumbnails embedded in resizable cells!")
         st.download_button(
             label="📥 Download Excel File",
             data=output.getvalue(),
