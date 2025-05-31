@@ -70,7 +70,11 @@ if uploaded_zip:
             with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
                 zip_ref.extractall(TEMP_PDF_DIR)
 
-            pdf_paths = [p for p in Path(TEMP_PDF_DIR).rglob("*.pdf") if p.is_file()]
+            pdf_paths = [
+                p for p in Path(TEMP_PDF_DIR).rglob("*.pdf")
+                if p.is_file() and not p.name.startswith("._") and "__MACOSX" not in str(p)
+            ]
+
             for path in pdf_paths:
                 try:
                     with path.open("rb") as f:
@@ -84,6 +88,8 @@ if uploaded_zip:
 # From individual uploads
 if uploaded_pdfs:
     for file in uploaded_pdfs:
+        if file.name.startswith("._"):
+            continue  # skip macOS resource forks
         all_pdfs.append((file.read(), file.name))
 
 # --- Process PDFs ---
