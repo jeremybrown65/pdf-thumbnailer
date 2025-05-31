@@ -11,17 +11,15 @@ st.set_page_config(page_title="PDF Thumbnail Generator", layout="centered")
 st.title("📄 PDF Thumbnail Generator")
 
 # --- Constants ---
-TEMP_IMG_DIR = "thumbnails_temp"
+TEMP_DIR = "thumbnails_temp"
 
-# --- Clean temp folder ---
-if os.path.exists(TEMP_IMG_DIR):
-    shutil.rmtree(TEMP_IMG_DIR)
-os.makedirs(TEMP_IMG_DIR, exist_ok=True)
+# --- Ensure temp folder exists ---
+if not os.path.exists(TEMP_DIR):
+    os.makedirs(TEMP_DIR, exist_ok=True)
 
-# --- Upload UI ---
-st.subheader("📂 Drag and drop individual PDF files here")
-uploaded_pdfs = st.file_uploader(
-    label="Upload PDFs",
+# --- File uploader ---
+uploaded_files = st.file_uploader(
+    "Upload one or more PDF files",
     type=["pdf"],
     accept_multiple_files=True
 )
@@ -29,9 +27,6 @@ uploaded_pdfs = st.file_uploader(
 # --- Convert a PDF to a thumbnail image ---
 def generate_thumbnail(pdf_bytes, original_filename):
     try:
-        if original_filename.startswith("._") or len(pdf_bytes) < 1024:
-            raise ValueError("Not a valid PDF")
-
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = doc[0]
         pix = page.get_pixmap(dpi=150)
@@ -43,28 +38,30 @@ def generate_thumbnail(pdf_bytes, original_filename):
         new_width = int(target_height * aspect_ratio)
         image = image.resize((new_width, target_height))
 
-        # Safe file name
+        # Create safe filename
         base_name = os.path.splitext(original_filename)[0]
         safe_name = base_name.replace(" ", "_").replace("/", "_").replace("\\", "_")
-        img_path = f"{TEMP_IMG_DIR}/{safe_name}.jpg"
+        img_path = f"{TEMP_DIR}/{safe_name}.jpg"
         image.save(img_path, format="JPEG")
 
         return img_path
     except Exception as e:
-        st.warning(f"⚠️ Skipped '{original_filename}': {e}")
+        st.error(f"Error processing '{original_filename}': {e}")
         return None
 
-# --- Process PDFs ---
-if uploaded_pdfs:
+# --- Process uploaded PDFs ---
+if uploaded_files:
     with st.spinner("Generating thumbnails..."):
         image_paths = []
 
-        for file in uploaded_pdfs:
-            img_path = generate_thumbnail(file.read(), file.name)
+        for file in uploaded_files:
+            pdf_data = file.read()
+            img_path = generate_thumbnail(pdf_data, file.name)
             if img_path:
                 image_paths.append(img_path)
 
         if image_paths:
+            # Package into ZIP
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for img_path in image_paths:
@@ -80,6 +77,4 @@ if uploaded_pdfs:
                 mime="application/zip"
             )
         else:
-            st.warning("No valid PDFs were processed.")
-else:
-    st.info("Upload PDF files to begin.")
+            st.warning("No thumbnails were created.")
