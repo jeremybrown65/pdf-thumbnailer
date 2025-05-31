@@ -21,7 +21,7 @@ for folder in [TEMP_PDF_DIR, TEMP_IMG_DIR]:
         shutil.rmtree(folder)
     os.makedirs(folder, exist_ok=True)
 
-# --- Instructions ---
+# --- Upload UI ---
 st.subheader("📂 Drag and drop individual PDF files here")
 uploaded_pdfs = st.file_uploader(
     label="Upload PDFs",
@@ -57,7 +57,7 @@ def generate_thumbnail(pdf_bytes, original_filename):
 
         return img_path
     except Exception as e:
-        st.error(f"Error processing '{original_filename}': {e}")
+        st.warning(f"⚠️ Skipped '{original_filename}': {e}")
         return None
 
 # --- Collect and process all PDFs ---
@@ -69,19 +69,24 @@ if uploaded_zip:
         try:
             with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
                 zip_ref.extractall(TEMP_PDF_DIR)
-            pdf_paths = list(Path(TEMP_PDF_DIR).rglob("*.pdf"))
+
+            pdf_paths = [p for p in Path(TEMP_PDF_DIR).rglob("*.pdf") if p.is_file()]
             for path in pdf_paths:
-                with path.open("rb") as f:
-                    all_pdfs.append((f.read(), path.name))
+                try:
+                    with path.open("rb") as f:
+                        pdf_bytes = f.read()
+                        all_pdfs.append((pdf_bytes, path.name))
+                except Exception as e:
+                    st.warning(f"⚠️ Skipped '{path.name}': couldn't open file")
         except Exception as e:
-            st.error(f"Failed to extract ZIP file: {e}")
+            st.error(f"❌ Failed to extract ZIP: {e}")
 
 # From individual uploads
 if uploaded_pdfs:
     for file in uploaded_pdfs:
         all_pdfs.append((file.read(), file.name))
 
-# Process if any PDFs were found
+# --- Process PDFs ---
 if all_pdfs:
     with st.spinner("Generating thumbnails..."):
         image_paths = []
@@ -108,6 +113,6 @@ if all_pdfs:
                 mime="application/zip"
             )
         else:
-            st.warning("No thumbnails were created.")
+            st.warning("No valid PDFs were processed.")
 else:
     st.info("Upload PDFs or a ZIP file to begin.")
