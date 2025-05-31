@@ -80,9 +80,14 @@ if uploaded_files:
         else:
             st.warning("No thumbnails were created.")
 
-# --- Manual cleanup + reset app ---
+# --- Manual cleanup + soft reset ---
 if st.button("🗑️ Clear Converted Files and Reset App"):
     if os.path.exists(TEMP_DIR):
         shutil.rmtree(TEMP_DIR)
     os.makedirs(TEMP_DIR, exist_ok=True)
-    st.experimental_rerun()
+
+    # Clear uploaded files and reset file_uploader
+    st.session_state.clear()
+    st.success("Cleared files and reset app.")
+    st.stop()  # Prevent old UI from showing below
+
